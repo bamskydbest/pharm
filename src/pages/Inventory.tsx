@@ -108,7 +108,7 @@ if (
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Inventory</h1>
         <p className="text-sm text-gray-500">
-          Manage stock & availability
+          Manage stock & availability 
         </p>
       </div>
 

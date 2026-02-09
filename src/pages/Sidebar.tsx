@@ -9,7 +9,10 @@ export default function Sidebar() {
     { to: "/", label: "Dashboard", roles: ["ADMIN"] },
     { to: "/pos", label: "POS", roles: ["CASHIER", "ADMIN"] },
     { to: "/inventory", label: "Inventory", roles: ["PHARMACIST", "ADMIN"] },
-    { to: "/reports", label: "Reports", roles: ["ACCOUNTANT", "ADMIN"] },
+    { to: "/customers", label: "Customers", roles: ["ADMIN"] },
+    { to: "/employees-database", label: "Employees", roles: ["ADMIN"] },
+    { to: "/accounting", label: "Accounting", roles: ["ACCOUNTANT", "ADMIN"] },
+    { to: "/reports", label: "Reports", roles: ["ADMIN"] },
   ];
 
   return (

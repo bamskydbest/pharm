@@ -1,11 +1,32 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuthStore } from "../components/store/authStore";
+import api from "../components/services/api";
+
+type ClockStatus = {
+  status: "not_marked" | "present" | "late" | "absent" | "leave";
+  clockIn: string | null;
+  clockOut: string | null;
+  hoursWorked: number;
+};
 
 export default function Navbar() {
   const { user, logout } = useAuthStore();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+
+  // Clock state
+  const [clockStatus, setClockStatus] = useState<ClockStatus | null>(null);
+  const [clockLoading, setClockLoading] = useState(false);
+
+  // Fetch clock status on mount
+  useEffect(() => {
+    if (!user) return;
+    api
+      .get<ClockStatus>("/attendance/my-status")
+      .then((res) => setClockStatus(res.data))
+      .catch(() => {});
+  }, [user]);
 
   if (!user) return null;
 
@@ -13,13 +34,74 @@ export default function Navbar() {
     { to: "/", label: "Dashboard", roles: ["ADMIN"] },
     { to: "/pos", label: "POS", roles: ["CASHIER", "ADMIN"] },
     { to: "/inventory", label: "Inventory", roles: ["PHARMACIST", "ADMIN"] },
-    { to: "/reports", label: "Reports", roles: ["ACCOUNTANT", "ADMIN"] },
-    { to: "/admin/create-user", label: "Staff", roles: ["ADMIN"] },
+    { to: "/customers", label: "Customers", roles: ["ADMIN"] },
+    { to: "/employees-database", label: "Employees", roles: ["ADMIN"] },
+    { to: "/accounting", label: "Accounting", roles: ["ACCOUNTANT", "ADMIN"] },
+    { to: "/reports", label: "Reports", roles: ["ADMIN"] },
+    { to: "/admin/create-user", label: "Add Staff", roles: ["ADMIN"] },
   ];
 
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  const handleSelfClock = async (action: "in" | "out") => {
+    try {
+      setClockLoading(true);
+      await api.post("/attendance/self-clock", { action });
+      // Refresh status
+      const res = await api.get<ClockStatus>("/attendance/my-status");
+      setClockStatus(res.data);
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Clock action failed");
+    } finally {
+      setClockLoading(false);
+    }
+  };
+
+  // Determine what button to show
+  const isClockedIn = clockStatus?.clockIn && !clockStatus?.clockOut;
+  const isClockedOut = clockStatus?.clockIn && clockStatus?.clockOut;
+  const notClockedIn = !clockStatus?.clockIn;
+
+  const ClockButton = ({ mobile }: { mobile?: boolean }) => {
+    const baseClass = mobile
+      ? "w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition"
+      : "px-3 py-1.5 rounded-lg text-xs font-medium transition";
+
+    if (isClockedOut) {
+      return (
+        <div className={`${baseClass} bg-gray-100 text-gray-500 flex items-center gap-1.5`}>
+          <span className="w-2 h-2 rounded-full bg-gray-400 inline-block" />
+          Done — {clockStatus!.hoursWorked}h
+        </div>
+      );
+    }
+
+    if (isClockedIn) {
+      return (
+        <button
+          onClick={() => handleSelfClock("out")}
+          disabled={clockLoading}
+          className={`${baseClass} bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 flex items-center gap-1.5 disabled:opacity-50`}
+        >
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse inline-block" />
+          {clockLoading ? "..." : "Clock Out"}
+        </button>
+      );
+    }
+
+    return (
+      <button
+        onClick={() => handleSelfClock("in")}
+        disabled={clockLoading}
+        className={`${baseClass} bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 flex items-center gap-1.5 disabled:opacity-50`}
+      >
+        <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+        {clockLoading ? "..." : "Clock In"}
+      </button>
+    );
   };
 
   return (
@@ -51,6 +133,9 @@ export default function Navbar() {
                   {l.label}
                 </NavLink>
               ))}
+
+            {/* Clock In/Out Button */}
+            <ClockButton />
 
             <button
               onClick={handleLogout}
@@ -85,6 +170,9 @@ export default function Navbar() {
                 {l.label}
               </NavLink>
             ))}
+
+          {/* Clock In/Out Button (Mobile) */}
+          <ClockButton mobile />
 
           <button
             onClick={handleLogout}

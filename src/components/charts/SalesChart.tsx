@@ -19,9 +19,10 @@ export default function SalesChart({ data }: any) {
       : d._id,
   }));
 
-  const formatAmount = (value: number) => {
-    if (value >= 1000) return `₵${(value / 1000).toFixed(1)}k`;
-    return `₵${value}`;
+  const formatAmount = (value: string | number | boolean | null | undefined) => {
+    const v = typeof value === "number" ? value : Number(value) || 0;
+    if (v >= 1000) return `₵${(v / 1000).toFixed(1)}k`;
+    return `₵${v}`;
   };
 
   return (
@@ -49,8 +50,8 @@ export default function SalesChart({ data }: any) {
             width={50}
           />
           <Tooltip
-            formatter={(value: number) => [`₵${value.toLocaleString()}`, "Sales"]}
-            labelFormatter={(label) => `Date: ${label}`}
+            formatter={(value: number | string | undefined) => [`₵${Number(value ?? 0).toLocaleString()}`, "Sales"]}
+            labelFormatter={(label: string | number | null | undefined) => `Date: ${label ?? ""}`}
             contentStyle={{
               borderRadius: "8px",
               border: "1px solid #e5e7eb",

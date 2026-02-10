@@ -63,7 +63,6 @@ export default function Navbar() {
   // Determine what button to show
   const isClockedIn = clockStatus?.clockIn && !clockStatus?.clockOut;
   const isClockedOut = clockStatus?.clockIn && clockStatus?.clockOut;
-  const notClockedIn = !clockStatus?.clockIn;
 
   const ClockButton = ({ mobile }: { mobile?: boolean }) => {
     const baseClass = mobile

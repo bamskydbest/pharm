@@ -1,4 +1,4 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 type ChartDataInput = {
   name: string;
@@ -43,8 +43,8 @@ export default function SalesPieChart({ data }: { data: any[] }) {
               outerRadius={75}
               innerRadius={40}
               paddingAngle={3}
-              label={({ name, percent }) =>
-                `${name} ${(percent * 100).toFixed(0)}%`
+              label={({ name, percent }: { name?: string; percent?: number }) =>
+                `${name || ""} ${((percent ?? 0) * 100).toFixed(0)}%`
               }
               labelLine={{ strokeWidth: 1 }}
             >
@@ -53,7 +53,7 @@ export default function SalesPieChart({ data }: { data: any[] }) {
               ))}
             </Pie>
             <Tooltip
-              formatter={(value: number) => [`₵${value.toLocaleString()}`, "Amount"]}
+              formatter={(value: number | string | undefined) => [`₵${Number(value ?? 0).toLocaleString()}`, "Amount"]}
               contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "12px" }}
             />
           </PieChart>

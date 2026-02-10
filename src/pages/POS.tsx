@@ -308,9 +308,8 @@ export default function POS() {
 
     try {
       const { data } = await api.post("/sales", payload);
-      printReceipt(data);
-      resetTransaction();
       showNotification("Sale completed successfully", "success");
+      printReceipt(data);
     } catch (err: any) {
       if (!navigator.onLine) {
         const updated = [...offlineQueue, payload];
@@ -343,8 +342,27 @@ export default function POS() {
     setPaymentMethod("cash");
   };
 
+  /* ==================== RECEIPT STATE ==================== */
+  const [receiptData, setReceiptData] = useState<any>(null);
+  const [receiptCustomer, setReceiptCustomer] = useState<Customer>({ name: "", phone: "", email: "", address: "" });
+
   /* ==================== PRINT RECEIPT ==================== */
   const printReceipt = (sale: any) => {
+    setReceiptCustomer({ ...customer });
+    setReceiptData(sale);
+    resetTransaction();
+  };
+
+  const closeReceipt = () => {
+    setReceiptData(null);
+    setReceiptCustomer({ name: "", phone: "", email: "", address: "" });
+  };
+
+  const handlePrintReceipt = () => {
+    if (!receiptData) return;
+    const sale = receiptData;
+    const sellerName = user?.name || "Staff";
+
     const receiptContent = `
       <!DOCTYPE html>
       <html>
@@ -369,8 +387,8 @@ export default function POS() {
             margin-bottom: 10px;
             text-transform: uppercase;
           }
-          .customer { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed #000; }
-          .customer p { font-size: 11px; }
+          .info-section { margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px dashed #000; }
+          .info-section p { font-size: 11px; margin-bottom: 2px; }
           .items { margin-bottom: 10px; }
           .item { display: flex; justify-content: space-between; margin-bottom: 5px; }
           .item-name { flex: 1; }
@@ -394,12 +412,11 @@ export default function POS() {
 
         <div class="store-type">${storeType === 'pharmacy' ? 'Pharmacy' : 'General Store'}</div>
 
-        ${sale.customer ? `
-        <div class="customer">
-          <p><strong>Customer:</strong> ${sale.customer.name}</p>
-          ${sale.customer.phone ? `<p><strong>Phone:</strong> ${sale.customer.phone}</p>` : ''}
+        <div class="info-section">
+          <p><strong>Served by:</strong> ${sellerName}</p>
+          ${receiptCustomer.name ? `<p><strong>Customer:</strong> ${receiptCustomer.name}</p>` : ''}
+          ${receiptCustomer.phone ? `<p><strong>Phone:</strong> ${receiptCustomer.phone}</p>` : ''}
         </div>
-        ` : ''}
 
         <div class="items">
           <div class="item" style="font-weight: bold; border-bottom: 1px solid #000; margin-bottom: 8px; padding-bottom: 3px;">
@@ -460,8 +477,9 @@ export default function POS() {
     printWindow.focus();
     setTimeout(() => {
       printWindow.print();
-      printWindow.close();
     }, 250);
+
+    closeReceipt();
   };
 
   /* ==================== NOTIFICATION ==================== */
@@ -503,15 +521,15 @@ export default function POS() {
 
   /* ==================== RENDER ==================== */
   return (
-    <div className="flex h-screen bg-[#F4F7F6]">
+    <div className="flex flex-col lg:flex-row min-h-screen lg:h-screen bg-[#F4F7F6] overflow-auto lg:overflow-hidden">
       {/* ==================== MAIN AREA ==================== */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* HEADER */}
-        <header className="bg-white shadow-sm px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <header className="bg-white shadow-sm px-3 sm:px-6 py-3 sm:py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
               <div>
-                <h1 className="text-xl font-semibold text-[#124170]">
+                <h1 className="text-base sm:text-xl font-semibold text-[#124170]">
                   Welcome, <span className="text-[#67C090]">{firstName}</span>
                 </h1>
                 <p className="text-xs text-gray-500">
@@ -523,7 +541,7 @@ export default function POS() {
               <div className="flex bg-gray-100 rounded-lg p-1">
                 <button
                   onClick={() => setStoreType("pharmacy")}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+                  className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition ${
                     storeType === "pharmacy"
                       ? "bg-[#124170] text-white shadow-sm"
                       : "text-gray-600 hover:text-[#124170]"
@@ -533,7 +551,7 @@ export default function POS() {
                 </button>
                 <button
                   onClick={() => setStoreType("general")}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+                  className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm font-medium transition ${
                     storeType === "general"
                       ? "bg-[#67C090] text-white shadow-sm"
                       : "text-gray-600 hover:text-[#67C090]"
@@ -564,9 +582,9 @@ export default function POS() {
         </header>
 
         {/* PRODUCT SEARCH & CART */}
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex flex-col md:flex-row overflow-visible md:overflow-hidden">
           {/* LEFT: Search & Products */}
-          <div className="w-96 border-r bg-white flex flex-col">
+          <div className="w-full md:w-72 lg:w-96 border-b md:border-b-0 md:border-r bg-white flex flex-col">
             {/* Search */}
             <div className="p-4 border-b">
               <div className="relative">
@@ -599,7 +617,7 @@ export default function POS() {
 
               {/* Product Suggestions */}
               {showProductSearch && products.length > 0 && (
-                <div className="absolute z-20 w-80 mt-1 bg-white border rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                <div className="absolute z-20 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-64 overflow-y-auto">
                   {products.map((p) => (
                     <button
                       key={p._id}
@@ -696,9 +714,9 @@ export default function POS() {
           </div>
 
           {/* RIGHT: Cart */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col overflow-hidden min-h-[200px] md:min-h-0">
             {/* Cart Header */}
-            <div className="px-6 py-4 bg-white border-b flex items-center justify-between">
+            <div className="px-4 sm:px-6 py-3 sm:py-4 bg-white border-b flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <h2 className="font-semibold text-[#124170]">Shopping Cart</h2>
                 <span className="px-2 py-1 bg-[#DDF4E7] text-[#124170] rounded-full text-xs font-medium">
@@ -741,17 +759,17 @@ export default function POS() {
                       key={item._id}
                       className="bg-white rounded-lg p-4 shadow-sm border hover:shadow-md transition"
                     >
-                      <div className="flex items-start justify-between gap-4">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-4">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-[#124170] truncate">
+                          <h3 className="font-medium text-[#124170] truncate text-sm sm:text-base">
                             {item.name}
                           </h3>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-xs sm:text-sm text-gray-500">
                             ₵{item.price.toFixed(2)} each
                           </p>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 sm:gap-3">
                           {/* Quantity Controls */}
                           <div className="flex items-center bg-gray-100 rounded-lg">
                             <button
@@ -809,9 +827,9 @@ export default function POS() {
       </div>
 
       {/* ==================== PAYMENT SIDEBAR ==================== */}
-      <div className="w-96 bg-white border-l flex flex-col">
+      <div className="w-full lg:w-96 bg-white border-t lg:border-t-0 lg:border-l flex flex-col">
         {/* Order Summary */}
-        <div className="p-6 border-b">
+        <div className="p-4 sm:p-6 border-b">
           <h2 className="font-semibold text-[#124170] mb-4">Order Summary</h2>
 
           <div className="space-y-3 text-sm">
@@ -833,7 +851,7 @@ export default function POS() {
         </div>
 
         {/* Payment Method */}
-        <div className="p-6 border-b flex-1 overflow-y-auto">
+        <div className="p-4 sm:p-6 border-b flex-1 overflow-y-auto">
           <h3 className="font-medium text-gray-700 mb-4">Payment Method</h3>
 
           <div className="grid grid-cols-2 gap-2 mb-6">
@@ -953,7 +971,7 @@ export default function POS() {
         </div>
 
         {/* Complete Sale Button */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <button
             onClick={completeSale}
             disabled={cart.length === 0 || totalPaid < total || isProcessing}
@@ -1094,10 +1112,144 @@ export default function POS() {
         </div>
       )}
 
+      {/* ==================== RECEIPT PREVIEW MODAL ==================== */}
+      {receiptData && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-[#124170] text-white flex items-center justify-between flex-shrink-0">
+              <h2 className="text-lg font-semibold">Receipt Preview</h2>
+              <button
+                onClick={closeReceipt}
+                className="text-white/70 hover:text-white text-xl"
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Receipt Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="font-mono text-sm space-y-4">
+                {/* Header */}
+                <div className="text-center border-b border-dashed border-gray-300 pb-3">
+                  <h3 className="text-base font-bold text-[#124170]">PharmacyPOS</h3>
+                  <p className="text-[10px] text-gray-500">
+                    Receipt #{receiptData._id?.slice(-8).toUpperCase() || "N/A"}
+                  </p>
+                  <p className="text-[10px] text-gray-500">
+                    {new Date().toLocaleString()}
+                  </p>
+                </div>
+
+                {/* Store Type */}
+                <div className="text-center text-[10px] uppercase bg-gray-100 py-1 rounded font-medium">
+                  {storeType === "pharmacy" ? "Pharmacy" : "General Store"}
+                </div>
+
+                {/* Seller & Customer Info */}
+                <div className="border-b border-dashed border-gray-300 pb-3 text-xs space-y-1">
+                  <p>
+                    <span className="font-semibold">Served by:</span>{" "}
+                    {user?.name || "Staff"}
+                  </p>
+                  {receiptCustomer.name && (
+                    <p>
+                      <span className="font-semibold">Customer:</span>{" "}
+                      {receiptCustomer.name}
+                    </p>
+                  )}
+                  {receiptCustomer.phone && (
+                    <p>
+                      <span className="font-semibold">Phone:</span>{" "}
+                      {receiptCustomer.phone}
+                    </p>
+                  )}
+                </div>
+
+                {/* Items */}
+                <div>
+                  <div className="flex text-[10px] font-bold border-b border-gray-300 pb-1 mb-2">
+                    <span className="flex-1">Item</span>
+                    <span className="w-10 text-center">Qty</span>
+                    <span className="w-16 text-right">Amount</span>
+                  </div>
+                  {receiptData.items?.map((i: any, idx: number) => (
+                    <div key={idx} className="flex text-xs mb-1">
+                      <span className="flex-1 truncate">{i.name}</span>
+                      <span className="w-10 text-center">x{i.quantity}</span>
+                      <span className="w-16 text-right">
+                        ₵{(i.total || i.unitPrice * i.quantity).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Totals */}
+                <div className="border-t border-dashed border-gray-300 pt-3 space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span>Subtotal:</span>
+                    <span>₵{(receiptData.subtotal || subtotal).toFixed(2)}</span>
+                  </div>
+                  {receiptData.tax > 0 && (
+                    <div className="flex justify-between text-xs">
+                      <span>Tax:</span>
+                      <span>₵{receiptData.tax.toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-sm border-t border-gray-300 pt-2 mt-2">
+                    <span>TOTAL:</span>
+                    <span>₵{(receiptData.total || total).toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {/* Payment */}
+                <div className="border-t border-dashed border-gray-300 pt-3 space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span>
+                      Paid ({receiptData.paymentMethod || getPaymentMethodString()}):
+                    </span>
+                    <span>₵{(receiptData.amountPaid || totalPaid).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span>Change:</span>
+                    <span>₵{(receiptData.change || change).toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="text-center text-[10px] text-gray-500 border-t border-dashed border-gray-300 pt-3">
+                  <p>Thank you for your purchase!</p>
+                  <p>Please come again</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="px-6 py-4 bg-gray-50 flex gap-3 flex-shrink-0 border-t">
+              <button
+                onClick={closeReceipt}
+                className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 transition text-sm font-medium"
+              >
+                Close
+              </button>
+              <button
+                onClick={handlePrintReceipt}
+                className="flex-1 px-4 py-2.5 bg-[#124170] text-white rounded-lg hover:bg-[#0d2f52] transition text-sm font-medium flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+                Print Receipt
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ==================== NOTIFICATION ==================== */}
       {notification && (
         <div
-          className={`fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-3 animate-slide-in ${
+          className={`fixed top-4 left-4 right-4 sm:left-auto sm:right-4 px-4 sm:px-6 py-3 rounded-lg shadow-lg z-50 flex items-center gap-3 animate-slide-in ${
             notification.type === "success"
               ? "bg-green-500 text-white"
               : notification.type === "error"

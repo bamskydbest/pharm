@@ -8,10 +8,11 @@ import Sidebar from "./Sidebar";
 
 type Sale = {
   _id: string;
-  total: number;
+  subtotal: number;
+  total?: number;
   paymentMethod: string;
-  cashier?: string;
-  items: { name: string; quantity: number }[];
+  soldBy?: { id: string; name: string };
+  items: { name: string; quantity: number; unitPrice: number; total: number }[];
   createdAt: string;
 };
 
@@ -91,7 +92,30 @@ export default function Dashboard() {
     fetchAll();
   }, []);
 
-  const todayRevenue = sales.reduce((sum, s) => sum + s.total, 0);
+  const todayRevenue = sales.reduce((sum, s) => sum + (s.subtotal || s.total || 0), 0);
+
+  // Receipt lookup
+  const [lookupQuery, setLookupQuery] = useState("");
+  const [lookupResults, setLookupResults] = useState<Sale[]>([]);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+
+  const handleLookup = async () => {
+    if (lookupQuery.trim().length < 3) return;
+    setLookupLoading(true);
+    setHasSearched(true);
+    try {
+      const { data } = await api.get<Sale[]>("/sales/lookup", {
+        params: { q: lookupQuery.trim() },
+      });
+      setLookupResults(data);
+    } catch {
+      setLookupResults([]);
+    } finally {
+      setLookupLoading(false);
+    }
+  };
 
   return (
     <div className="flex bg-[#F4F7F6] min-h-screen">
@@ -248,20 +272,20 @@ export default function Dashboard() {
                                 #{sale._id.slice(-6).toUpperCase()}
                               </td>
                               <td className="px-4 py-2.5 text-right font-semibold text-green-600">
-                                ₵{sale.total.toFixed(2)}
+                                ₵{(sale.subtotal || sale.total || 0).toFixed(2)}
                               </td>
                               <td className="px-4 py-2.5 text-center">
-                                <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium capitalize ${
-                                  sale.paymentMethod === "cash" ? "bg-green-100 text-green-700"
-                                  : sale.paymentMethod === "momo" ? "bg-yellow-100 text-yellow-700"
-                                  : sale.paymentMethod === "card" ? "bg-blue-100 text-blue-700"
+                                <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium uppercase ${
+                                  sale.paymentMethod?.includes("CASH") ? "bg-green-100 text-green-700"
+                                  : sale.paymentMethod?.includes("MOMO") ? "bg-yellow-100 text-yellow-700"
+                                  : sale.paymentMethod?.includes("CARD") ? "bg-blue-100 text-blue-700"
                                   : "bg-purple-100 text-purple-700"
                                 }`}>
                                   {sale.paymentMethod}
                                 </span>
                               </td>
                               <td className="px-4 py-2.5 text-gray-500 text-xs hidden sm:table-cell">
-                                {sale.cashier || "—"}
+                                {sale.soldBy?.name || "—"}
                               </td>
                               <td className="px-4 py-2.5 text-right text-gray-400 text-xs">
                                 {new Date(sale.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -311,7 +335,7 @@ export default function Dashboard() {
                 <div className="bg-white rounded-lg shadow-sm p-4">
                   <h2 className="font-medium text-[#124170] text-sm mb-3">Attendance Today</h2>
                   {attendance ? (
-                    <div className="grid grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <div className="text-center p-2 bg-green-50 rounded-lg">
                         <p className="text-lg font-bold text-green-600">{attendance.presentToday}</p>
                         <p className="text-[10px] text-gray-500 uppercase">Present</p>
@@ -393,6 +417,85 @@ export default function Dashboard() {
               </div>
             </div>
 
+            {/* RECEIPT LOOKUP */}
+            <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-medium text-[#124170]">Receipt Lookup</h2>
+                <p className="text-xs text-gray-400">Search by receipt ID from printed receipt</p>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Enter receipt ID (e.g. A1B2C3)..."
+                  value={lookupQuery}
+                  onChange={(e) => setLookupQuery(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === "Enter" && handleLookup()}
+                  className="flex-1 border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#67C090] font-mono uppercase"
+                />
+                <button
+                  onClick={handleLookup}
+                  disabled={lookupLoading || lookupQuery.trim().length < 3}
+                  className="px-5 py-2.5 bg-[#124170] text-white rounded-lg hover:bg-[#0d2f52] transition text-sm font-medium disabled:opacity-50"
+                >
+                  {lookupLoading ? "Searching..." : "Search"}
+                </button>
+              </div>
+
+              {lookupResults.length > 0 && (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2.5 text-left font-medium text-gray-500 text-xs">Receipt #</th>
+                        <th className="px-4 py-2.5 text-right font-medium text-gray-500 text-xs">Amount</th>
+                        <th className="px-4 py-2.5 text-center font-medium text-gray-500 text-xs">Payment</th>
+                        <th className="px-4 py-2.5 text-left font-medium text-gray-500 text-xs hidden sm:table-cell">Sold By</th>
+                        <th className="px-4 py-2.5 text-right font-medium text-gray-500 text-xs">Date</th>
+                        <th className="px-4 py-2.5 text-center font-medium text-gray-500 text-xs">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {lookupResults.map((sale) => (
+                        <tr key={sale._id} className="hover:bg-gray-50">
+                          <td className="px-4 py-2.5 font-mono text-xs text-[#124170] font-semibold">
+                            #{sale._id.slice(-8).toUpperCase()}
+                          </td>
+                          <td className="px-4 py-2.5 text-right font-semibold text-green-600">
+                            ₵{(sale.subtotal || 0).toFixed(2)}
+                          </td>
+                          <td className="px-4 py-2.5 text-center">
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium uppercase bg-gray-100 text-gray-700">
+                              {sale.paymentMethod}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2.5 text-gray-500 text-xs hidden sm:table-cell">
+                            {sale.soldBy?.name || "—"}
+                          </td>
+                          <td className="px-4 py-2.5 text-right text-gray-400 text-xs">
+                            {new Date(sale.createdAt).toLocaleString([], {
+                              month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"
+                            })}
+                          </td>
+                          <td className="px-4 py-2.5 text-center">
+                            <button
+                              onClick={() => setSelectedSale(sale)}
+                              className="text-xs text-[#124170] hover:text-[#67C090] font-medium"
+                            >
+                              View Details
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {lookupResults.length === 0 && hasSearched && !lookupLoading && (
+                <p className="mt-4 text-center text-sm text-gray-400">No receipts found matching "{lookupQuery}"</p>
+              )}
+            </div>
+
             {/* QUICK NAVIGATION */}
             <div>
               <h2 className="font-medium text-[#124170] mb-3 text-sm uppercase tracking-wide">Quick Navigation</h2>
@@ -419,6 +522,100 @@ export default function Dashboard() {
               </div>
             </div>
           </>
+        )}
+
+        {/* SALE DETAIL MODAL */}
+        {selectedSale && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[85vh] flex flex-col overflow-hidden">
+              <div className="px-6 py-4 bg-[#124170] text-white flex items-center justify-between flex-shrink-0">
+                <div>
+                  <h2 className="text-lg font-semibold">Sale Details</h2>
+                  <p className="text-xs text-white/70 font-mono">
+                    Receipt #{selectedSale._id.slice(-8).toUpperCase()}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedSale(null)}
+                  className="text-white/70 hover:text-white text-xl"
+                >
+                  &times;
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {/* Meta Info */}
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-[10px] text-gray-500 uppercase">Date & Time</p>
+                    <p className="font-medium text-[#124170]">
+                      {new Date(selectedSale.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-[10px] text-gray-500 uppercase">Sold By</p>
+                    <p className="font-medium text-[#124170]">
+                      {selectedSale.soldBy?.name || "—"}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-[10px] text-gray-500 uppercase">Payment Method</p>
+                    <p className="font-medium text-[#124170] uppercase">
+                      {selectedSale.paymentMethod}
+                    </p>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-3">
+                    <p className="text-[10px] text-gray-500 uppercase">Total Amount</p>
+                    <p className="font-bold text-green-600 text-lg">
+                      ₵{(selectedSale.subtotal || 0).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Full Receipt ID */}
+                <div className="bg-gray-50 rounded-lg p-3 text-sm">
+                  <p className="text-[10px] text-gray-500 uppercase mb-1">Full Receipt ID</p>
+                  <p className="font-mono text-xs text-[#124170] break-all select-all">{selectedSale._id}</p>
+                </div>
+
+                {/* Items */}
+                <div>
+                  <h3 className="text-sm font-semibold text-[#124170] mb-2">Items Purchased</h3>
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Item</th>
+                          <th className="px-3 py-2 text-center text-xs font-medium text-gray-500">Qty</th>
+                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Price</th>
+                          <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {selectedSale.items.map((item, idx) => (
+                          <tr key={idx}>
+                            <td className="px-3 py-2 text-xs">{item.name}</td>
+                            <td className="px-3 py-2 text-center text-xs">{item.quantity}</td>
+                            <td className="px-3 py-2 text-right text-xs">₵{(item.unitPrice || 0).toFixed(2)}</td>
+                            <td className="px-3 py-2 text-right text-xs font-medium">₵{(item.total || 0).toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div className="px-6 py-4 bg-gray-50 border-t flex-shrink-0">
+                <button
+                  onClick={() => setSelectedSale(null)}
+                  className="w-full px-4 py-2.5 bg-[#124170] text-white rounded-lg hover:bg-[#0d2f52] transition text-sm font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </main>
     </div>

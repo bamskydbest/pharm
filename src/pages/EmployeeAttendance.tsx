@@ -257,7 +257,7 @@ export default function EmployeeAttendance() {
 
         {/* Stats Cards */}
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4">
             <div className="bg-white rounded-lg shadow-sm p-4">
               <p className="text-xs text-gray-500 uppercase">Total Days</p>
               <p className="text-2xl font-bold text-[#124170]">{stats.totalDays}</p>

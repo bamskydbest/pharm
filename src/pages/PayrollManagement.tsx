@@ -394,7 +394,7 @@ export default function PayrollManagement() {
 
         {/* Summary Cards */}
         {summary && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             <div className="bg-white rounded-lg shadow-sm p-4">
               <p className="text-xs text-gray-500 uppercase">Total Salaries</p>
               <p className="text-2xl font-bold text-[#124170]">
@@ -423,7 +423,7 @@ export default function PayrollManagement() {
         )}
 
         {/* Status summary */}
-        <div className="flex gap-4 text-sm">
+        <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm">
           <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full">
             Paid: {summary?.paidCount || 0}
           </span>
